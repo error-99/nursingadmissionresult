@@ -8,12 +8,12 @@ const RESULT_URL = BASE + "/options/result.php";
 
 export default async function handler(req, res) {
 
-  const roll = req.query.roll;
+  const { roll } = req.query;
 
   if (!roll) {
     return res.status(400).json({
       status: false,
-      message: "roll required"
+      message: "roll query required"
     });
   }
 
@@ -34,10 +34,10 @@ export default async function handler(req, res) {
       })
     );
 
-    // STEP 1 — create session
+    // create session
     await client.get(RESULT_URL);
 
-    // STEP 2 — submit roll
+    // submit roll
     const params = new URLSearchParams({
       yes: "YES",
       roll_no: roll,
@@ -80,8 +80,9 @@ export default async function handler(req, res) {
       }
     });
 
-    // image fix
+    // fix image url
     const img = $(".result img").attr("src");
+
     if (img) {
       data.photo = BASE + "/" + img.replace("../", "");
     }
