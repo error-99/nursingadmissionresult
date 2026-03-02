@@ -1,0 +1,8 @@
+{
+  "routes": [
+    {
+      "src": "/api/result",
+      "dest": "/api/result.js"
+    }
+  ]
+}
