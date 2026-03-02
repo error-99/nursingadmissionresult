@@ -1,52 +1,60 @@
 import axios from "axios";
-import cheerio from "cheerio";
-import { CookieJar } from "tough-cookie";
-import { wrapper } from "axios-cookiejar-support";
-
-const BASE = "http://bnmc.teletalk.com.bd";
-const RESULT_URL = BASE + "/options/result.php";
+import * as cheerio from "cheerio";
 
 export default async function handler(req, res) {
 
-  const { roll } = req.query;
+  const roll = req.query.roll;
 
   if (!roll) {
-    return res.status(400).json({
+    return res.json({
       status: false,
-      message: "roll query required"
+      message: "Roll number required"
     });
   }
 
+  const base = "http://bnmc.teletalk.com.bd";
+  const url = base + "/options/result.php";
+
   try {
 
-    /* create session client */
-    const jar = new CookieJar();
+    /* ======================
+       STEP 1 — CREATE SESSION
+    =======================*/
 
-    const client = wrapper(
-      axios.create({
-        jar,
-        withCredentials: true,
-        headers: {
-          "User-Agent": "Mozilla/5.0",
-          "Content-Type": "application/x-www-form-urlencoded"
-        },
-        timeout: 15000
-      })
-    );
+    const session = await axios.get(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      },
+      withCredentials: true
+    });
 
-    // create session
-    await client.get(RESULT_URL);
+    const cookies = session.headers["set-cookie"];
 
-    // submit roll
-    const params = new URLSearchParams({
+    /* ======================
+       STEP 2 — POST REQUEST
+    =======================*/
+
+    const form = new URLSearchParams({
       yes: "YES",
       roll_no: roll,
       button01: "Submit"
     });
 
-    const response = await client.post(RESULT_URL, params);
+    const response = await axios.post(url, form, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: cookies?.join("; ")
+      }
+    });
 
-    const $ = cheerio.load(response.data);
+    const html = response.data;
+
+    /* ======================
+       STEP 3 — PARSE HTML
+    =======================*/
+
+    const $ = cheerio.load(html);
 
     const data = {
       status: true,
@@ -62,35 +70,60 @@ export default async function handler(req, res) {
       photo: ""
     };
 
-    $(".result tr").each((i, el) => {
+    $("table.result tr").each((i, el) => {
 
-      const label = $(el).find("td").eq(0).text().trim();
-      const value = $(el).find("td").eq(2).text().trim();
+      const tds = $(el).find("td");
 
-      switch (label) {
-        case "Roll": data.roll = value; break;
-        case "Name": data.name = value; break;
-        case "Course Name": data.course = value; break;
-        case "Merit Position": data.merit_position = value; break;
-        case "Test Score": data.test_score = value; break;
-        case "Merit Score": data.merit_score = value; break;
-        case "College Code": data.college_code = value; break;
-        case "College Name": data.college_name = value; break;
-        case "Status": data.result_status = value; break;
+      if (tds.length >= 3) {
+
+        const label = $(tds[0]).text().trim();
+        const value = $(tds[2]).text().trim();
+
+        switch (label) {
+          case "Roll":
+            data.roll = value;
+            break;
+          case "Name":
+            data.name = value;
+            break;
+          case "Course Name":
+            data.course = value;
+            break;
+          case "Merit Position":
+            data.merit_position = value;
+            break;
+          case "Test Score":
+            data.test_score = value;
+            break;
+          case "Merit Score":
+            data.merit_score = value;
+            break;
+          case "College Code":
+            data.college_code = value;
+            break;
+          case "College Name":
+            data.college_name = value;
+            break;
+          case "Status":
+            data.result_status = value;
+            break;
+        }
       }
     });
 
-    // fix image url
-    const img = $(".result img").attr("src");
+    /* IMAGE */
+    const img = $("table.result img").attr("src");
 
     if (img) {
-      data.photo = BASE + "/" + img.replace("../", "");
+      const clean = img.replace("../", "");
+      data.photo = `${base}/${clean}`;
     }
 
-    return res.status(200).json(data);
+    return res.json(data);
 
   } catch (err) {
-    return res.status(500).json({
+
+    return res.json({
       status: false,
       error: err.message
     });
