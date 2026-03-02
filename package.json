@@ -1,11 +1,9 @@
 {
-  "name": "bnmc-result-api",
+  "name": "bnmc-result",
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
     "axios": "^1.7.0",
-    "axios-cookiejar-support": "^5.0.1",
-    "cheerio": "^1.0.0",
-    "tough-cookie": "^4.1.3"
+    "cheerio": "^1.0.0"
   }
 }
